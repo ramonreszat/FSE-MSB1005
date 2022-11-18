@@ -1,0 +1,81 @@
+Cardiomyopathy
+====================================
+
+## Background
+![](background_cardiomyopathy.png)
+
+```{r description, echo=FALSE, message=FALSE, warnings=FALSE, results='asis'}
+tabl <- "
+| Systolic Dysfunction         | Normal       | Diastolic Dysfunction  |
+|:---------------|:----------------:|:-----------------|
+| Dilated cardiomyopathy (DCM)       |  | Hypertrophic cardiomyopathy (HCM) |
+"
+cat(tabl)
+```		
+	
+## Dataset
+Loading an RNA-sequencing dataset of left ventricular biopsies of heart failure patients and healthy controls.
+
+```{r dataset}
+setwd('MAGNET_GX_2022')
+
+# transcriptomics measurement from the NCBI MAGnet dataset
+gxData <- read.delim('MAGNET_GeneExpressionData_CPM_19112020.txt', header=TRUE, sep='\t', row.names=1)
+
+# annotations for the tissue samples in the dataset
+sampleInfo <- read.csv('MAGNET_SampleData_18112022.csv',header=TRUE, stringsAsFactor=TRUE)
+```
+
+## Overview
+```{r etiology}
+# individuals per category
+summary(sampleInfo$etiology)
+```
+
+```{r gender}
+library(ggplot2)
+gender <- ggplot(sampleInfo, aes(x=etiology, fill=gender)) +
+	geom_bar(position="dodge") + 
+	labs(
+    title = "*Individuals affected by cardiomyopathy*",
+    subtitle = "(Dec 13, 2019)",
+    caption = "Data from the NCBI MAGnet consortium.",
+    tag = "Figure 1",
+    x = "Types of cardiomyopathy (etiology)",
+    y = "count",
+	)
+
+# pivot table gender vs. disease category 
+table(sampleInfo$etiology, sampleInfo$gender)
+
+gender + theme_bw()
+```
+
+```{r age}
+# mean age per type of cardiomyopathy
+aggregate(sampleInfo$age, list(sampleInfo$etiology), FUN=mean)
+```
+
+## Analysis
+```{r gene_expression}
+# merge gene expression data by sample name
+transcriptomics <- cbind(sampleInfo, t(gxData))
+
+# aggregate the mean expression of all gene for each etiology
+matrix <- aggregate(transcriptomics[,19:150], list(transcriptomics$etiology), FUN=mean)#20801
+row.names(matrix) <- levels(sampleInfo$etiology)
+
+data <- stack(as.data.frame(t(matrix[,4:100])))
+range <- ggplot(data, aes(x=values, color=ind)) +
+	geom_density() +
+	labs(
+	title="Distribution of gene expression in cardiomyopathy",
+	subtitle="(mRNA-seq data)",
+	caption="MAGNET_GeneExpressionData_CPM_19112020.txt",
+	tag="Figure 2",
+	x = "expression value (CPM)",
+	y = "genes (%)"
+	)
+
+range + theme_bw()
+```
